@@ -244,6 +244,8 @@ Rules marked *judgement* have no primary source. They come from combining the ev
 | E6 | S90 |
 | E7 | S56 |
 | O1 to O5 | *judgement* |
+| K1 to K9 | *judgement*, built on W2 and S1 to S4. K7's claim mechanism: `tests/verify-git-commands.sh` (checks m) |
+| G1 to G12 | *judgement*, built on W1, W3, W7, H5, H7 and U1. G3's naming rule and G5's conflict test: `tests/verify-git-commands.sh` (checks n and o) |
 | M1 | S50, S109 |
 | M2 to M4 | *judgement* |
 | Autonomy levels | as the rules they cite |

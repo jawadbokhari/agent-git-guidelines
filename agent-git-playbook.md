@@ -1,20 +1,20 @@
 ---
 title: Git playbook for teams of AI agents and humans
 created: 2026-09-25
-updated: 2026-09-25
+updated: 2026-10-02
 tags:
   - ai
   - guideline
   - git
   - playbook
-source: Companion to agent-git-guidelines.md v2, written 2026-09-25.
+source: Companion to agent-git-guidelines.md v2, written 2026-09-25. Section 13 added for the v3 draft, 2026-10-02.
 ---
 
 # Git playbook for teams of AI agents and humans
 
-**Status:** informative companion to [`agent-git-guidelines.md`](./agent-git-guidelines.md) v2, 2026-09-25. It has no rules of its own. Each item names the rule it serves.
+**Status:** informative companion to [`agent-git-guidelines.md`](./agent-git-guidelines.md) v3 draft, 2026-10-02 (section 13 is new). It has no rules of its own. Each item names the rule it serves.
 **Names products:** unlike the guideline, this playbook names products and settings. They change often. Each product fact says when it was checked. Re-check before relying on it.
-**Tested:** every Git behavior this playbook relies on ran in throwaway repositories on Git 2.55.0 on 2026-09-25 ([`tests/verify-git-commands.sh`](./tests/verify-git-commands.sh), 69 of 69 checks passed). Plain commands with no special behavior, such as `git push -u`, were not tested. Results and their limits are in the research note, [section 7](./agent-git-guidelines-research.md#7-tests-run-for-v2).
+**Tested:** every Git behavior this playbook relies on ran in throwaway repositories on Git 2.55.0 ([`tests/verify-git-commands.sh`](./tests/verify-git-commands.sh): 69 of 69 checks passed on 2026-09-25, and 78 of 78 on 2026-10-02 after the section 13 checks were added). Plain commands with no special behavior, such as `git push -u`, were not tested. Results and their limits are in the research note, [section 7](./agent-git-guidelines-research.md#7-tests-run-for-v2).
 **Blank tables** (sections 4 and 12) are for a person to fill in. Do not pre-fill them.
 
 ## 1. Session start and finish
@@ -308,4 +308,119 @@ Serves E1, E2, M4. One copy per repository. Fill it in by hand, checking each co
 | Sandbox on. Unsandboxed escape hatch off for unattended runs | I4 | | | | |
 | Guardrails load from a location the agent cannot write | V2 | | | | |
 | Hook bootstrap script present | V6 | | | | |
+| Contribution guide names the tracker. Work item template present | K1, K2, K5 | | | | |
 | Last recovery drill | M2 | | | | |
+
+## 13. Work items and multi-agent coordination
+
+Serves K1 to K9 and G1 to G12. Product facts checked 2026-10-02.
+
+### 13.1 Work item template
+
+Put this in the tracker's issue template (for example `.github/ISSUE_TEMPLATE/work-item.md` on GitHub, `.gitlab/issue_templates/work-item.md` on GitLab), so every work item starts with the fields K2 asks for.
+
+```markdown
+## Goal
+<one or two sentences>
+
+## Scope
+Paths that may change:
+Paths that must not change:
+
+## Done when
+<observable result, and the check that shows it>
+
+## Accountable human
+<name>
+
+## Status
+<open | claimed | in progress | blocked | in review | done | abandoned>
+Claim: <session id>, operator <name>, branch agent/<id>, claimed <date and time>
+
+## Sub-tasks (multi-agent only, G2)
+| Sub-task | Worker session | Branch | Paths | Status |
+|---|---|---|---|---|
+```
+
+### 13.2 Handoff record
+
+Post as a comment on the work item at every checkpoint and at the end of every session (K5, S3). The newest comment of this shape is the current state.
+
+```markdown
+**Handoff** <date and time>, session <id>, operator <name>
+- Branch and commit: agent/<id> at <short sha> (pushed: yes | no)
+- Done: <what changed since the last handoff>
+- Verified: <checks run and their results, with the date>. Not verified: <list>
+- Blocked on: <nothing | what, and who can unblock it>
+- Next step: <the first thing the next session should do>
+- Avoid: <approaches already tried and why they failed>
+- Open questions: <for whom>
+```
+
+### 13.3 Claiming a work item
+
+A tracker assignment is the visible label, but on common hosts it is not a lock: GitHub accepts several assignees on one issue, and on GitLab the last write wins. The lock is the branch. A push with an empty lease creates the branch only if it does not exist yet, so of two sessions that claim at the same moment, exactly one succeeds (W2, K7). Name the branch from the work item ID alone, so two sessions cannot pick different names for the same item.
+
+```bash
+git fetch origin
+DEF=$(git symbolic-ref --short refs/remotes/origin/HEAD)
+git worktree add ../<repo>-<id> -b agent/<id> "$DEF"
+cd ../<repo>-<id>
+git commit --allow-empty -m "Claim work item <id>" --trailer "Agent-Session: <session-id>" --trailer "Assisted-by: <agent-name>"
+# Succeeds only if agent/<id> does not exist on the remote yet:
+git push --force-with-lease=refs/heads/agent/<id>: origin HEAD:refs/heads/agent/<id> \
+  || { echo "work item <id> is already claimed: stop and tell the operator"; exit 1; }
+```
+
+Then set the assignee and the status on the work item. Every later push to `agent/<id>` renews the claim. To find claims that may have expired, list agent branches by the date of their last commit. This is the commit date, not the push date, so treat it as a hint and check the work item's handoff before acting (K7):
+
+```bash
+git fetch origin
+git for-each-ref --sort=committerdate --format='%(committerdate:short) %(refname:short)' refs/remotes/origin/agent/
+```
+
+The empty claim commit disappears when the PR is squash-merged (B2). In repositories that merge with merge commits or rebase, drop it before the PR leaves draft, or accept it in the history.
+
+### 13.4 Coordinator and workers
+
+```bash
+# Coordinator: the integration branch is the claim branch, agent/<id>.
+# Workers: one branch each, cut from the integration branch, with a separator and not a slash (G3).
+git fetch origin
+git worktree add ../<repo>-<id>--<sub> -b agent/<id>--<sub> origin/agent/<id>
+git push --force-with-lease=refs/heads/agent/<id>--<sub>: origin HEAD:refs/heads/agent/<id>--<sub>
+
+# Worker, at every checkpoint (G4):
+git push origin HEAD
+
+# Worker, after the coordinator merges into the integration branch (G5). Test for conflicts first:
+git fetch origin
+git merge-tree --write-tree HEAD origin/agent/<id> >/dev/null || echo "conflict: stop and report to the coordinator"
+git rebase origin/agent/<id>     # only on a branch no one else has pulled; otherwise merge
+
+# Coordinator, to integrate a finished worker branch:
+git fetch origin
+git merge --no-ff origin/agent/<id>--<sub>
+git push origin HEAD
+```
+
+`agent/<id>/<sub>` fails, because Git cannot store a branch under a name that is already a branch. The test script checks this.
+
+### 13.5 Status message
+
+Every message between agents, on the work item or the PR, has this shape (G6). The reader checks the commit and the checks before relying on it (G7).
+
+```markdown
+**Status** from <worker session> on sub-task <sub>, at <short sha> on agent/<id>--<sub>
+Done: <...>  Pushed: yes  Checks: <passed | failed | not run>
+Blocked: <nothing | ...>  Needs: <nothing | ...>
+```
+
+### 13.6 Which tool features fit
+
+| Need | Fits | Does not fit |
+|---|---|---|
+| The tracker (K1) | The host's issues, or the team's existing tracker if agents can reach it | A personal notes vault, an agent memory directory, chat |
+| A lock for a claim (K7) | A branch created with an empty lease (13.3) | A tracker assignment on its own |
+| Messages that must survive the session (G6) | Comments on the work item or the PR | An agent tool's in-session messages or task list, which end with the session. Use them for speed, then copy what matters to the work item |
+| Isolation for each worker (G3, G9) | A worktree or clone per worker, and a container per worker for services | Two workers in one directory, even on different branches |

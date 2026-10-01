@@ -5,7 +5,7 @@
 # It touches no real repository and no global or system Git configuration.
 # Usage: ./verify-git-commands.sh      (exit status 0 when every check passes)
 #        AUTO_COMMIT_SCRIPT=/path/to/hook.sh ./verify-git-commands.sh   (run the auto-commit checks against another script)
-# Last run: 2026-09-25 on git 2.55.0, 69 of 69 passed.
+# Last run: 2026-10-02 on git 2.55.0, 78 of 78 passed.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 EX="${AUTO_COMMIT_SCRIPT:-$HERE/../examples/auto-commit.sh}"
@@ -311,5 +311,30 @@ git checkout -q -- tracked.txt 2>/dev/null; rm -rf .claude
 # l. a repository with no commits yet is skipped
 mkdir -p "$ROOT/empty" && ( cd "$ROOT/empty" && git init -q -b trunk . && echo x > f.txt && git add f.txt && "$EX" )
 check "auto-commit skips a repository with no commits" '[ -z "$(git -C "$ROOT/empty" log --oneline 2>/dev/null)" ]'
+
+# m. claims (K7, playbook 13.3): an empty lease creates a branch only if it does not exist yet
+git init -q --bare -b trunk "$ROOT/claim.git"
+git clone -q "$ROOT/claim.git" "$ROOT/ca" 2>/dev/null; git clone -q "$ROOT/claim.git" "$ROOT/cb" 2>/dev/null
+( cd "$ROOT/ca" && git checkout -q -b trunk 2>/dev/null; git commit -q --allow-empty -m init && git push -q origin trunk 2>/dev/null )
+( cd "$ROOT/cb" && git fetch -q origin && git checkout -q -B trunk origin/trunk )
+( cd "$ROOT/ca" && git commit -q --allow-empty -m "Claim work item 42" --trailer "Agent-Session: a" )
+( cd "$ROOT/cb" && git commit -q --allow-empty -m "Claim work item 42" --trailer "Agent-Session: b" )
+check "first claim with an empty lease succeeds" '( cd "$ROOT/ca" && git push -q --force-with-lease=refs/heads/agent/42: origin HEAD:refs/heads/agent/42 2>/dev/null )'
+check "second claim with an empty lease is rejected" '! ( cd "$ROOT/cb" && git push -q --force-with-lease=refs/heads/agent/42: origin HEAD:refs/heads/agent/42 2>/dev/null )'
+check "the first claim is still the branch tip after the second attempt" '[ "$(git -C "$ROOT/claim.git" rev-parse agent/42)" = "$(git -C "$ROOT/ca" rev-parse HEAD)" ]'
+check "a later ordinary push by the holder renews the claim" '( cd "$ROOT/ca" && git commit -q --allow-empty -m work && git push -q origin HEAD:refs/heads/agent/42 2>/dev/null )'
+
+# n. worker branch names (G3, playbook 13.4): nesting fails, a separator works
+check "a branch nested under an existing branch is rejected (agent/42/a)" '! ( cd "$ROOT/ca" && git push -q origin HEAD:refs/heads/agent/42/a 2>/dev/null )'
+check "a worker branch with a separator is accepted (agent/42--a)" '( cd "$ROOT/ca" && git push -q --force-with-lease=refs/heads/agent/42--a: origin HEAD:refs/heads/agent/42--a 2>/dev/null )'
+check "agent branches can be listed by last commit date" '( cd "$ROOT/cb" && git fetch -q origin && git for-each-ref --sort=committerdate --format="%(committerdate:short) %(refname:short)" refs/remotes/origin/agent/ | grep -q "origin/agent/42--a" )'
+
+# o. a worker tests for conflicts with the integration branch without touching its tree (G5)
+( cd "$ROOT/ca" && echo base > shared.txt && git add shared.txt && git commit -qm base && git push -q origin HEAD:refs/heads/agent/42 2>/dev/null )
+( cd "$ROOT/cb" && git fetch -q origin && git checkout -q -B agent/42--b origin/agent/42 && echo worker > shared.txt && git commit -qam worker )
+( cd "$ROOT/ca" && echo coordinator > shared.txt && git commit -qam coord && git push -q origin HEAD:refs/heads/agent/42 2>/dev/null )
+( cd "$ROOT/cb" && git fetch -q origin )
+check "merge-tree reports a conflict with the moved integration branch" '! ( cd "$ROOT/cb" && git merge-tree --write-tree HEAD origin/agent/42 >/dev/null )'
+check "the worker tree is untouched by the conflict test" '[ "$(cat "$ROOT/cb/shared.txt")" = worker ] && [ -z "$(git -C "$ROOT/cb" status --porcelain)" ]'
 echo "----"; echo "passed=$pass failed=$fail"
 [ "$fail" -eq 0 ]
