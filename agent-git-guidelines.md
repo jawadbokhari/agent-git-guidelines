@@ -6,12 +6,12 @@ tags:
   - ai
   - guideline
   - git
-source: First written 2026-09-19 (v1), revised 2026-09-25 (v2), accepted 2026-10-01. v3 draft 2026-10-02.
+source: First written 2026-09-19 (v1), revised 2026-09-25 (v2), accepted 2026-10-01. v3 accepted 2026-10-02.
 ---
 
 # Git guidelines for teams of AI agents and humans
 
-**Status:** v3 draft 2026-10-02: adds [section 14](#14-work-items-and-multi-agent-coordination) on work items and multi-agent coordination. D8 decided 2026-10-02. v2 accepted 2026-10-01 (v2 draft: 2026-09-25, v1: 2026-09-19). Vendor-neutral: it names capabilities, not products.
+**Status:** v3 accepted 2026-10-02: adds [section 14](#14-work-items-and-multi-agent-coordination) on work items and multi-agent coordination. All open decisions settled (D8 decided 2026-10-02). v2 accepted 2026-10-01 (v2 draft: 2026-09-25, v1: 2026-09-19). Vendor-neutral: it names capabilities, not products.
 **Evidence:** every rule ID below maps to its sources in [`agent-git-guidelines-research.md`](./agent-git-guidelines-research.md#rule-to-source-map).
 **Practice guide:** templates, tested commands, configuration and host settings are in [`agent-git-playbook.md`](./agent-git-playbook.md). That guide names products. This document does not.
 **Keywords:** MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119 and RFC 8174. A MUST is achievable today with common Git hosting and agent tooling. A SHOULD may be skipped only with a recorded reason.
@@ -339,7 +339,7 @@ Rows marked decided are settled. The others need a decision from the owner. Each
 
 ## 22. Changes
 
-### v3 (draft, 2026-10-02)
+### v3 (accepted, 2026-10-02)
 
 Rule IDs from v2 are unchanged. Section 14 is new, and old sections 14 to 21 are now sections 15 to 22.
 

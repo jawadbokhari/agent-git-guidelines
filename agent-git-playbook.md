@@ -7,12 +7,12 @@ tags:
   - guideline
   - git
   - playbook
-source: Companion to agent-git-guidelines.md v2, written 2026-09-25. Section 13 added for the v3 draft, 2026-10-02.
+source: Companion to agent-git-guidelines.md v2, written 2026-09-25. Section 13 added for v3, 2026-10-02.
 ---
 
 # Git playbook for teams of AI agents and humans
 
-**Status:** informative companion to [`agent-git-guidelines.md`](./agent-git-guidelines.md) v3 draft, 2026-10-02 (section 13 is new). It has no rules of its own. Each item names the rule it serves.
+**Status:** informative companion to [`agent-git-guidelines.md`](./agent-git-guidelines.md) v3, accepted 2026-10-02 (section 13 is new). It has no rules of its own. Each item names the rule it serves.
 **Names products:** unlike the guideline, this playbook names products and settings. They change often. Each product fact says when it was checked. Re-check before relying on it.
 **Tested:** every Git behavior this playbook relies on ran in throwaway repositories on Git 2.55.0 ([`tests/verify-git-commands.sh`](./tests/verify-git-commands.sh): 69 of 69 checks passed on 2026-09-25, and 78 of 78 on 2026-10-02 after the section 13 checks were added). Plain commands with no special behavior, such as `git push -u`, were not tested. Results and their limits are in the research note, [section 7](./agent-git-guidelines-research.md#7-tests-run-for-v2).
 **Blank tables** (sections 4 and 12) are for a person to fill in. Do not pre-fill them.

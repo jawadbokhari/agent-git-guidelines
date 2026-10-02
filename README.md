@@ -2,7 +2,7 @@
 
 Git guidelines for teams where AI coding agents and humans work in the same repositories. Vendor-neutral rules, a practice playbook that names products, and the research behind every rule.
 
-**Version:** 2, accepted 2026-10-01. A v3 draft (2026-10-02) adds work items and multi-agent coordination (section 14) and is under review.
+**Version:** 3, accepted 2026-10-02 (v2 accepted 2026-10-01). Version 3 adds work items and multi-agent coordination (section 14).
 
 | File | What it is |
 |---|---|
