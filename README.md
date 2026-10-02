@@ -10,7 +10,9 @@ Git guidelines for teams where AI coding agents and humans work in the same repo
 | [`agent-git-playbook.md`](./agent-git-playbook.md) | How to apply it: commit and PR templates, reviewer checklist, client configuration, hooks, host settings, repository sign-off checklist |
 | [`agent-git-guidelines-research.md`](./agent-git-guidelines-research.md) | Sources (S1 to S123) and the rule-to-source map |
 | [`examples/auto-commit.sh`](./examples/auto-commit.sh) | Reference auto-commit hook for solo repositories (rule O3) |
-| [`tests/verify-git-commands.sh`](./tests/verify-git-commands.sh) | 78 checks of the Git behaviour the rules rely on. Run it after a Git upgrade |
+| [`examples/check-trailers.sh`](./examples/check-trailers.sh) | Reference provenance check (rule V3): fails a PR whose squash message would lose the `Assisted-by` trailer, and a landed commit whose `Assisted-by` line is not a trailer |
+| [`examples/provenance-check.yml`](./examples/provenance-check.yml) | GitHub Actions workflow that runs the provenance check on PRs and on pushes to the default branch |
+| [`tests/verify-git-commands.sh`](./tests/verify-git-commands.sh) | 89 checks of the Git behaviour the rules rely on and of the example scripts. Run it after a Git upgrade |
 
 ## Using it in a repository
 

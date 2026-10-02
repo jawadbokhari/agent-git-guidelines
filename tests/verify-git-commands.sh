@@ -5,7 +5,7 @@
 # It touches no real repository and no global or system Git configuration.
 # Usage: ./verify-git-commands.sh      (exit status 0 when every check passes)
 #        AUTO_COMMIT_SCRIPT=/path/to/hook.sh ./verify-git-commands.sh   (run the auto-commit checks against another script)
-# Last run: 2026-10-02 on git 2.55.0, 78 of 78 passed.
+# Last run: 2026-10-02 on git 2.55.0, 89 of 89 passed.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 EX="${AUTO_COMMIT_SCRIPT:-$HERE/../examples/auto-commit.sh}"
@@ -336,5 +336,36 @@ check "agent branches can be listed by last commit date" '( cd "$ROOT/cb" && git
 ( cd "$ROOT/cb" && git fetch -q origin )
 check "merge-tree reports a conflict with the moved integration branch" '! ( cd "$ROOT/cb" && git merge-tree --write-tree HEAD origin/agent/42 >/dev/null )'
 check "the worker tree is untouched by the conflict test" '[ "$(cat "$ROOT/cb/shared.txt")" = worker ] && [ -z "$(git -C "$ROOT/cb" status --porcelain)" ]'
+
+# ---------- examples/check-trailers.sh: provenance check (V3, B2, P1) ----------
+CT="$HERE/../examples/check-trailers.sh"
+check "example trailer check script exists and is executable" '[ -x "$CT" ]'
+git init -q -b trunk "$ROOT/ct"; cd "$ROOT/ct" || exit 1
+echo a > a.txt; git add a.txt; git commit -qm init; CT_BASE=$(git rev-parse HEAD)
+git checkout -q -b human; echo h >> a.txt; git commit -qam "human change"
+git checkout -q -b agent trunk; echo b >> a.txt; git commit -qam "agent change" --trailer "Assisted-by: claude-code"
+git checkout -q trunk
+printf 'What changed.\n\nAssisted-by: claude-code\nAgent-Session: https://example.com/s/1\n' > "$ROOT/good.md"
+printf 'What changed.\n\nAssisted-by: claude-code\nAgent-Session: https://example.com/s/1\n\nGenerated with a tool\n\nhttps://example.com/s/1\n' > "$ROOT/footer.md"
+printf 'What changed.\r\n\r\nAssisted-by: claude-code\r\n' > "$ROOT/crlf.md"
+printf 'Assisted-by: claude-code\n' > "$ROOT/only.md"
+printf 'What changed.\n' > "$ROOT/none.md"
+
+# a. PR mode: the squash message is the PR title and description
+check "a PR with no agent commits passes" '"$CT" pr "$CT_BASE" human "T" "$ROOT/none.md" >/dev/null'
+check "a PR whose description ends with the trailer block passes" '"$CT" pr "$CT_BASE" agent "T" "$ROOT/good.md" >/dev/null'
+check "a footer after the trailer block fails" '! "$CT" pr "$CT_BASE" agent "T" "$ROOT/footer.md" 2>/dev/null'
+check "a description without the trailer fails" '! "$CT" pr "$CT_BASE" agent "T" "$ROOT/none.md" 2>/dev/null'
+check "a description with CRLF line ends passes" '"$CT" pr "$CT_BASE" agent "T" "$ROOT/crlf.md" >/dev/null'
+check "a description that is only the trailer block passes" '"$CT" pr "$CT_BASE" agent "T" "$ROOT/only.md" >/dev/null'
+
+# b. landed mode: squash commits written from the footer and the good description
+git merge -q --squash agent >/dev/null 2>&1; { echo "Agent change (#1)"; echo; cat "$ROOT/footer.md"; } | git commit -q -F -; CT_BAD=$(git rev-parse HEAD)
+git reset -q --hard "$CT_BASE"
+git merge -q --squash agent >/dev/null 2>&1; { echo "Agent change (#2)"; echo; cat "$ROOT/good.md"; } | git commit -q -F -; CT_GOOD=$(git rev-parse HEAD)
+check "a landed commit with an unparsed Assisted-by line fails" '! "$CT" landed "$CT_BAD" 2>/dev/null'
+check "a landed commit with the trailer block last passes" '"$CT" landed "$CT_GOOD" >/dev/null'
+check "a landed range is checked commit by commit" '"$CT" landed "$CT_BASE..$CT_GOOD" >/dev/null && ! "$CT" landed "$CT_BASE..$CT_BAD" 2>/dev/null'
+check "a usage error exits 2" '"$CT" landed 2>/dev/null; [ $? -eq 2 ]'
 echo "----"; echo "passed=$pass failed=$fail"
 [ "$fail" -eq 0 ]

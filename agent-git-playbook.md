@@ -14,7 +14,7 @@ source: Companion to agent-git-guidelines.md v2, written 2026-09-25. Section 13 
 
 **Status:** informative companion to [`agent-git-guidelines.md`](./agent-git-guidelines.md) v3, accepted 2026-10-02 (section 13 is new). It has no rules of its own. Each item names the rule it serves.
 **Names products:** unlike the guideline, this playbook names products and settings. They change often. Each product fact says when it was checked. Re-check before relying on it.
-**Tested:** every Git behavior this playbook relies on ran in throwaway repositories on Git 2.55.0 ([`tests/verify-git-commands.sh`](./tests/verify-git-commands.sh): 69 of 69 checks passed on 2026-09-25, and 78 of 78 on 2026-10-02 after the section 13 checks were added). Plain commands with no special behavior, such as `git push -u`, were not tested. Results and their limits are in the research note, [section 7](./agent-git-guidelines-research.md#7-tests-run-for-v2).
+**Tested:** every Git behavior this playbook relies on ran in throwaway repositories on Git 2.55.0 ([`tests/verify-git-commands.sh`](./tests/verify-git-commands.sh): 69 of 69 checks passed on 2026-09-25, 78 of 78 on 2026-10-02 after the section 13 checks were added, and 89 of 89 the same day after the provenance check example was added). Plain commands with no special behavior, such as `git push -u`, were not tested. Results and their limits are in the research note, [section 7](./agent-git-guidelines-research.md#7-tests-run-for-v2).
 **Blank tables** (sections 4 and 12) are for a person to fill in. Do not pre-fill them.
 
 ## 1. Session start and finish
@@ -213,6 +213,8 @@ The default for agent PRs is squash (decision D2, 2026-09-25). The recipe:
 2. Set the repository's squash commit message to the PR title and description.
 3. After the first squash merge, run `git log -1 --format='%(trailers:key=Assisted-by,valueonly)'` on the default branch. It must print the value.
 4. Keep the provenance check (V3) on the default branch. It catches every merge that did not follow steps 1 and 2.
+
+A reference check is [`examples/check-trailers.sh`](./examples/check-trailers.sh), run by the workflow [`examples/provenance-check.yml`](./examples/provenance-check.yml). On a PR it fails when a commit carries `Assisted-by` and the final trailer block of the PR title and description does not carry the same value, so it catches the mistake before the merge. On a push to the default branch it fails when a commit has an `Assisted-by` line that Git does not parse as a trailer. The usual cause is text after the trailer block, such as a tool's "Generated with" footer or session link: a trailer block counts only when it is the last paragraph. Eleven checks in `tests/verify-git-commands.sh` cover it.
 
 With merge commits, the original commits and their trailers are kept. With rebase merges, the commits are recreated with a new committer and new hashes, so signatures made on the originals do not carry over.
 

@@ -1,0 +1,56 @@
+# provenance-check.yml: an example GitHub Actions workflow for the provenance check in rule V3
+# of agent-git-guidelines.md. It runs examples/check-trailers.sh.
+#
+# To use it:
+#   1. Copy this file to .github/workflows/provenance-check.yml and check-trailers.sh to scripts/check-trailers.sh.
+#   2. Set the default branch name under "push" below.
+#   3. Make the "squash-message" job a required check in branch protection (rule V3).
+#   4. Add .github/workflows/ and scripts/check-trailers.sh to the protected paths (rule L2): a PR runs its
+#      own copy of both files, so only review stops a PR from weakening the check it is judged by.
+# The repository's squash message must be set to the PR title and description (playbook section 8).
+
+name: provenance-check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  squash-message:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # The title and description are untrusted text, so they reach the script through environment variables.
+      - name: The squash message keeps the agent trailers
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          scripts/check-trailers.sh pr "$BASE_SHA" "$HEAD_SHA" "$PR_TITLE" "$RUNNER_TEMP/pr-body.md"
+
+  landed-commits:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Landed commits keep their agent trailers
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$BEFORE" = 0000000000000000000000000000000000000000 ]; then range=$GITHUB_SHA; else range=$BEFORE..$GITHUB_SHA; fi
+          scripts/check-trailers.sh landed "$range"
