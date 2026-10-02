@@ -11,7 +11,7 @@ source: First written 2026-09-19 (v1), revised 2026-09-25 (v2), accepted 2026-10
 
 # Git guidelines for teams of AI agents and humans
 
-**Status:** v3 draft 2026-10-02: adds [section 14](#14-work-items-and-multi-agent-coordination) on work items and multi-agent coordination, with one open decision (D8). v2 accepted 2026-10-01 (v2 draft: 2026-09-25, v1: 2026-09-19). Vendor-neutral: it names capabilities, not products.
+**Status:** v3 draft 2026-10-02: adds [section 14](#14-work-items-and-multi-agent-coordination) on work items and multi-agent coordination. D8 decided 2026-10-02. v2 accepted 2026-10-01 (v2 draft: 2026-09-25, v1: 2026-09-19). Vendor-neutral: it names capabilities, not products.
 **Evidence:** every rule ID below maps to its sources in [`agent-git-guidelines-research.md`](./agent-git-guidelines-research.md#rule-to-source-map).
 **Practice guide:** templates, tested commands, configuration and host settings are in [`agent-git-playbook.md`](./agent-git-playbook.md). That guide names products. This document does not.
 **Keywords:** MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119 and RFC 8174. A MUST is achievable today with common Git hosting and agent tooling. A SHOULD may be skipped only with a recorded reason.
@@ -243,7 +243,7 @@ Git records what changed. A work item records what is still pending, who holds i
 - **K4.** The work item, its branch, its commits and its PR MUST be reachable from one another. The branch name and the commits carry the work item's ID ([H1](#6-branches-and-git-hygiene), [C4](#5-history-and-commit-quality)), the PR links the work item ([Q2](#8-pull-requests-and-review)), and the work item links the branch and the PR.
 - **K5.** The handoff record that [S3](#13-session-lifecycle-and-handoff) requires SHOULD live on the work item, in a fixed template, and SHOULD be updated at every checkpoint, not only when the session ends. The latest record MUST be easy to find, for example as the last comment or as a status section at the top of the work item. The playbook has a template.
 - **K6.** A session that takes up existing work MUST read the work item, the latest handoff record and the state of the branch (commits ahead of the default branch, the PR, the latest check results) before its first write. It MUST check what the handoff claims against the repository and the checks, and not take it as true ([U1](#12-untrusted-input-and-instruction-files)).
-- **K7.** A claim ([W2](#4-workspaces-and-concurrency)) is a lease. It records the holder (session and operator) and when it expires, and the holder renews it while working. A push to the claimed branch counts as a renewal. An expired claim MAY be taken over only with the agreement of the previous holder's operator or of the work item's accountable human. The takeover is recorded on the work item, and the new holder continues from the pushed branch. It MUST NOT delete that branch or force-push over it ([H4, H5](#6-branches-and-git-hygiene)). The default lease is an open decision ([D8](#21-open-decisions)).
+- **K7.** A claim ([W2](#4-workspaces-and-concurrency)) is a lease. It records the holder (session and operator) and when it expires, and the holder renews it while working. A push to the claimed branch counts as a renewal. An expired claim MAY be taken over only with the agreement of the previous holder's operator or of the work item's accountable human. The takeover is recorded on the work item, and the new holder continues from the pushed branch. It MUST NOT delete that branch or force-push over it ([H4, H5](#6-branches-and-git-hygiene)). The default lease is one working day ([D8](#21-open-decisions)).
 - **K8.** A work item MAY be closed as done only after the change is confirmed on the remote's default branch ([S2](#13-session-lifecycle-and-handoff)). Closing it as abandoned MUST state the reason. Either way, every branch linked to the work item is landed or recorded as abandoned first. Deleting a branch that has not landed is a human decision ([H4](#6-branches-and-git-hygiene)).
 - **K9.** The accountable human or the dispatcher SHOULD review the tracker at least once a week for expired claims, work items in progress with no push for several days, and agent branches with no work item.
 
@@ -335,7 +335,7 @@ Rows marked decided are settled. The others need a decision from the owner. Each
 | D5 (decided) | Accept the solo-repository exception (O1) | Decided 2026-10-01: accepted, with O2 and O3 |
 | D6 (decided) | The 5 MB default for large files (H8), and the stop line for conflicts (H7). H7 now has some evidence behind it | Decided 2026-10-01: keep both. H7 stays a judgement call |
 | D7 (decided) | Whether to adopt Conventional Commits (C7) | Decided 2026-10-01: only where release tooling reads the history |
-| D8 | The default claim lease (K7): how long a claim lasts without a push or renewal before it counts as expired | One working day. A repository MAY set its own in its contribution guide |
+| D8 (decided) | The default claim lease (K7): how long a claim lasts without a push or renewal before it counts as expired | Decided 2026-10-02: one working day. A repository MAY set its own in its contribution guide |
 
 ## 22. Changes
 
@@ -347,7 +347,7 @@ Rule IDs from v2 are unchanged. Section 14 is new, and old sections 14 to 21 are
 |---|---|
 | New rules | K1 to K9 (work items, claims as leases, handoff on the work item), G1 to G12 (several agents on one work item) |
 | Changed rules | W2 (claims expire, see K7; a plain tracker assignment is not an atomic claim), S3 (handoff record on the work item), E1 (contribution guide names the tracker), rules at a glance (14 and 15 added), definitions (work item, tracker, claim, coordinator and worker, integration branch) |
-| Open | D8 (default claim lease) |
+| Decided | D8 (default claim lease: one working day), 2026-10-02 |
 | Found by test | A branch push with an empty lease (`--force-with-lease=<ref>:`) succeeds only if the branch does not exist yet, so it works as an atomic claim. Git rejects a branch whose name nests under another (`agent/42` and `agent/42/a`), which is why G3 bans nesting. Both are in `tests/verify-git-commands.sh` |
 
 ### v2
