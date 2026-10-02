@@ -1,21 +1,21 @@
 ---
 title: Git guidelines for teams of AI agents and humans
 created: 2026-09-19
-updated: 2026-10-01
+updated: 2026-10-02
 tags:
   - ai
   - guideline
   - git
-source: First written 2026-09-19 (v1), revised 2026-09-25 (v2), accepted 2026-10-01.
+source: First written 2026-09-19 (v1), revised 2026-09-25 (v2), accepted 2026-10-01. v3 accepted 2026-10-02.
 ---
 
 # Git guidelines for teams of AI agents and humans
 
-**Status:** v2 accepted 2026-10-01, all open decisions settled (v2 draft: 2026-09-25, v1: 2026-09-19). Vendor-neutral: it names capabilities, not products.
+**Status:** v3 accepted 2026-10-02: adds [section 14](#14-work-items-and-multi-agent-coordination) on work items and multi-agent coordination. All open decisions settled (D8 decided 2026-10-02). v2 accepted 2026-10-01 (v2 draft: 2026-09-25, v1: 2026-09-19). Vendor-neutral: it names capabilities, not products.
 **Evidence:** every rule ID below maps to its sources in [`agent-git-guidelines-research.md`](./agent-git-guidelines-research.md#rule-to-source-map).
 **Practice guide:** templates, tested commands, configuration and host settings are in [`agent-git-playbook.md`](./agent-git-playbook.md). That guide names products. This document does not.
 **Keywords:** MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119 and RFC 8174. A MUST is achievable today with common Git hosting and agent tooling. A SHOULD may be skipped only with a recorded reason.
-**What changed in v2:** [section 21](#21-changes-in-v2).
+**What changed in v3 and v2:** [section 22](#22-changes).
 
 ---
 
@@ -25,7 +25,7 @@ source: First written 2026-09-19 (v1), revised 2026-09-25 (v2), accepted 2026-10
 2. Agents never push to the default branch of a code repository and never approve or merge their own change. ([L1, L3](#9-landing-changes))
 3. Anything that must always hold is enforced by the Git host or CI, not by an instruction file. ([V1](#11-validation-and-guardrails))
 4. Agents get the least access the task needs: scoped, short-lived credentials, with no rights over settings, protection or their own permissions. ([I2, I3](#3-identity-access-and-secrets))
-5. Secrets never enter a commit, a message, a prompt, a log, a transcript or a work item. If one is exposed, rotate it. ([I5](#3-identity-access-and-secrets), [R1](#14-incident-response))
+5. Secrets never enter a commit, a message, a prompt, a log, a transcript or a work item. If one is exposed, rotate it. ([I5](#3-identity-access-and-secrets), [R1](#15-incident-response))
 6. Text an agent reads (issues, PR comments, web pages, tool output, other repositories) is data, not instructions. ([U1](#12-untrusted-input-and-instruction-files))
 7. Any command that discards commits or uncommitted work, rewrites pushed history, or bypasses a hook needs explicit, per-action human approval. ([H4](#6-branches-and-git-hygiene))
 8. Every agent commit carries an `Assisted-by:` trailer, and it is still a trailer after the merge. Only a human adds `Signed-off-by:`. `Co-authored-by:` is for humans. ([P1, P2](#10-attribution-and-provenance), [B2](#7-branching-merging-and-releases))
@@ -33,7 +33,9 @@ source: First written 2026-09-19 (v1), revised 2026-09-25 (v2), accepted 2026-10
 10. Every session ends with its work landed or handed off as a tracked item. Nothing lives only in a transcript. ([S3](#13-session-lifecycle-and-handoff))
 11. Keep changes small: one logical change per commit, one self-contained change per pull request, branches that land within days. ([C1](#5-history-and-commit-quality), [Q1](#8-pull-requests-and-review), [W4](#4-workspaces-and-concurrency))
 12. A human understands a change and has seen it work before asking anyone else to review it. ([Q3, Q4](#8-pull-requests-and-review))
-13. Before contributing to a repository you do not own, read its AI policy. An agent never posts there on its own. ([X1, X2](#16-contributing-to-repositories-you-do-not-own))
+13. Before contributing to a repository you do not own, read its AI policy. An agent never posts there on its own. ([X1, X2](#17-contributing-to-repositories-you-do-not-own))
+14. Every task has a work item in the repository's named tracker. The work item, not a transcript or an agent's memory, holds the status, the claim and the handoff. ([K1, K5](#14-work-items-and-multi-agent-coordination))
+15. When several agents share a work item: one coordinator, one branch and one set of paths per worker, a push at every checkpoint, all coordination on the work item, and nothing another agent reports is trusted until checked. ([G1 to G7](#14-work-items-and-multi-agent-coordination))
 
 ---
 
@@ -48,7 +50,7 @@ This guideline applies to any software agent driven by a language model that rea
 | Interactive | The operator, in a live session | Yes |
 | Delegated | The operator assigns a task (issue, mention, label) and returns later | No, but a named operator started it |
 | Headless | An event or a schedule (CI, cron, webhook) | No. The workflow owner is accountable |
-| Multi-agent | An agent spawns or hands off to other agents | Inherits the mode of the parent session |
+| Multi-agent | An agent spawns or hands off to other agents | Inherits the mode of the parent session. See [section 14](#14-work-items-and-multi-agent-coordination) |
 
 | Term | Meaning |
 |---|---|
@@ -63,7 +65,12 @@ This guideline applies to any software agent driven by a language model that rea
 | Trailer | A `Key: value` line at the end of a commit message that Git can parse, for example with `git interpret-trailers` |
 | Recovery point | A commit, ref or snapshot from which uncommitted work can be restored |
 | Outside repository | A repository the operator does not own or maintain, such as an upstream open-source project |
-| Solo repository | A repository with exactly one human maintainer. See [section 18](#18-solo-and-personal-repositories) |
+| Solo repository | A repository with exactly one human maintainer. See [section 19](#19-solo-and-personal-repositories) |
+| Work item | The record of one task in the repository's tracker: goal, scope, status, claim and handoff. Also called an issue, ticket or task |
+| Tracker | The one system that holds a repository's work items ([K1](#14-work-items-and-multi-agent-coordination)) |
+| Claim | A record that one session holds a work item, with an expiry ([W2](#4-workspaces-and-concurrency), [K7](#14-work-items-and-multi-agent-coordination)) |
+| Coordinator, worker | When several sessions share a work item, the coordinator owns the work item, the integration branch and the PR, and each worker owns one sub-task ([G1](#14-work-items-and-multi-agent-coordination)) |
+| Integration branch | The branch a coordinator merges its workers' branches into, and from which the PR is opened |
 
 ## 2. Accountability: the human roles
 
@@ -77,7 +84,7 @@ Agents carry no accountability. Every agent action MUST trace to a named human.
 | **Code owner** | Defining protected paths and approving changes to them |
 | **Platform and security owner** | Agent identities, token issuance, guardrails, incident handling |
 
-- **A1.** A small team MUST still meet the independent-review rule for protected paths. If only one human exists in a team repository, protected-path changes wait until a second reviewer is available. They are never self-approved. A repository with a single owner and no team follows [section 18](#18-solo-and-personal-repositories) instead.
+- **A1.** A small team MUST still meet the independent-review rule for protected paths. If only one human exists in a team repository, protected-path changes wait until a second reviewer is available. They are never self-approved. A repository with a single owner and no team follows [section 19](#19-solo-and-personal-repositories) instead.
 - **A2.** Humans reviewing agent work SHOULD use the team's existing review checklist unchanged. AI-generated code gets neither a lighter review nor an automatic rejection.
 
 ## 3. Identity, access and secrets
@@ -92,7 +99,7 @@ Agents carry no accountability. Every agent action MUST trace to a named human.
 ## 4. Workspaces and concurrency
 
 - **W1.** Each session MUST work in its own workspace, created before the first write. Sessions MUST NOT share a working directory. A worktree isolates files only. It shares `.git`, all refs (including the stash), hooks and often the tool's saved approvals with the main checkout, so it is not a security sandbox. Git refuses by default to check out one branch in two worktrees. Do not override that.
-- **W2.** Each task SHOULD have exactly one branch and one owner at a time. Before starting, the agent SHOULD claim the task in a place where two simultaneous claims cannot both succeed (a tracker assignment, or a lock file or branch pushed to the shared remote), and check for open or in-progress work on the same thing. If another person or agent holds it, the agent MUST stop and tell the operator.
+- **W2.** Each task SHOULD have exactly one branch and one owner at a time. Before starting, the agent SHOULD claim the task in a place where two simultaneous claims cannot both succeed (a branch or lock file created on the shared remote only if it does not exist yet, or a tracker that enforces a single holder; a plain assignment on most hosts is not enough), and check for open or in-progress work on the same thing. If another person or agent holds it, the agent MUST stop and tell the operator. Claims expire and are renewed as [K7](#14-work-items-and-multi-agent-coordination) describes.
 - **W3.** When several agents work in parallel, the dispatcher SHOULD give them non-overlapping files or modules. Conflict rates rise sharply when different agent tools touch the same repository.
 - **W4.** Branches SHOULD land within days, not weeks. The agent SHOULD update from the default branch before opening a PR and again before landing.
 - **W5.** When PRs to one branch routinely wait on each other (as a rule of thumb, more than about ten merges a day), the repository SHOULD land through a merge queue or merge train.
@@ -137,7 +144,7 @@ These rules apply to people and agents alike.
 ## 7. Branching, merging and releases
 
 - **B1.** Team repositories SHOULD work trunk-based: short-lived branches that land within days ([W4](#4-workspaces-and-concurrency)), and for humans at least once a day. Published delivery research puts the target at three or fewer active branches per repository, each lasting hours. Long-lived branches are for maintained release lines only.
-- **B2.** Each repository MUST document one merge method (merge commit, squash or rebase) in its contribution guide. The default for agent PRs is squash ([D2](#20-open-decisions)). Whatever the method, the landed commit MUST keep the [P1](#10-attribution-and-provenance) trailers in a form Git can parse. Squash merges break this by default: the host's default message lists the branch's commits, and a trailer inside that list is no longer a trailer. With squash, the trailers MUST be in the final message. Put them in the PR description and set the repository's squash message to the PR title and description. A rebase merge creates new commits with new hashes and a new committer, so signatures made on the original commits do not carry over.
+- **B2.** Each repository MUST document one merge method (merge commit, squash or rebase) in its contribution guide. The default for agent PRs is squash ([D2](#21-open-decisions)). Whatever the method, the landed commit MUST keep the [P1](#10-attribution-and-provenance) trailers in a form Git can parse. Squash merges break this by default: the host's default message lists the branch's commits, and a trailer inside that list is no longer a trailer. With squash, the trailers MUST be in the final message. Put them in the PR description and set the repository's squash message to the PR title and description. A rebase merge creates new commits with new hashes and a new committer, so signatures made on the original commits do not carry over.
 - **B3.** A repository that relies on bisect and simple reverts SHOULD keep default-branch history linear, using squash or rebase merges and the host's linear-history rule.
 - **B4.** Work too large for one reviewable change SHOULD be split into a stack of small PRs, each targeting the one below it, so each can be reviewed alone. Hosts have started to add native stacks. `rebase.updateRefs` moves the stacked branches when the base changes.
 - **B5.** Release tags MUST be annotated and SHOULD be signed ([P4](#10-attribution-and-provenance)). Versioned software SHOULD use Semantic Versioning. Once a version is released, its contents MUST NOT change: publish a new version instead. Host features that make releases and their tags immutable enforce this.
@@ -145,7 +152,7 @@ These rules apply to people and agents alike.
 
 ## 8. Pull requests and review
 
-- **Q1.** A PR SHOULD be one self-contained change that a reviewer can read in one sitting. Refactoring goes in a separate PR from a feature or a fix. A repository MAY state a size budget in its contribution guide ([D1](#20-open-decisions)). This guideline sets and enforces no number. Work too large to read in one sitting is split ([B4](#7-branching-merging-and-releases)).
+- **Q1.** A PR SHOULD be one self-contained change that a reviewer can read in one sitting. Refactoring goes in a separate PR from a feature or a fix. A repository MAY state a size budget in its contribution guide ([D1](#21-open-decisions)). This guideline sets and enforces no number. Work too large to read in one sitting is split ([B4](#7-branching-merging-and-releases)).
 - **Q2.** The PR description MUST say what changed, why, how it was verified, what could go wrong and how to roll it back, and what the author did not do. It MUST say which parts an agent drafted, and link the work item. A template in the repository makes this the default.
 - **Q3.** A change MUST come with evidence that it works: an automated test that fails without the change, and a note of what the author saw when they ran it. Tests an agent wrote for its own change are not independent validation ([V3](#11-validation-and-guardrails)).
 - **Q4.** The human who requests review MUST have read the whole diff and MUST be able to explain it in their own words. A change its operator cannot explain is not ready for review.
@@ -175,7 +182,7 @@ Pick the gate by what the change touches, never by who or what made it.
 
 ## 10. Attribution and provenance
 
-- **P1.** Every commit an agent drafted or materially changed MUST carry an `Assisted-by:` trailer naming the agent, for example `Assisted-by: <agent-name>`. Adding the model is optional: `Assisted-by: <agent-name>:<model-id>`. It SHOULD also carry an `Agent-Session:` trailer that points to the session record. `Co-authored-by:` MUST NOT name an agent: it is for human co-authors and gives contribution credit. The `<agent-name>[:<model-id>]` form is this guideline's own. Other projects use other forms, and one large project has simplified its tag to `Assisted-by: LLM [TOOL...]` with no agent or model. In an outside repository, use that repository's form ([X3](#16-contributing-to-repositories-you-do-not-own)).
+- **P1.** Every commit an agent drafted or materially changed MUST carry an `Assisted-by:` trailer naming the agent, for example `Assisted-by: <agent-name>`. Adding the model is optional: `Assisted-by: <agent-name>:<model-id>`. It SHOULD also carry an `Agent-Session:` trailer that points to the session record. `Co-authored-by:` MUST NOT name an agent: it is for human co-authors and gives contribution credit. The `<agent-name>[:<model-id>]` form is this guideline's own. Other projects use other forms, and one large project has simplified its tag to `Assisted-by: LLM [TOOL...]` with no agent or model. In an outside repository, use that repository's form ([X3](#17-contributing-to-repositories-you-do-not-own)).
 - **P2.** `Signed-off-by:` (the Developer Certificate of Origin) MUST only be added by a human, who certifies the change after reviewing it.
 - **P3.** Agent tools emit different trailers by default. Some add the trailer themselves. Others only instruct the model to add it, so it can be missing. The repository's instruction file MUST state the trailer set, and tool settings SHOULD be configured to match it. An address in a trailer SHOULD be one that cannot belong to a real person's account (for example a `noreply` address on a domain the vendor or the team controls), because hosts credit trailers by email address.
 - **P4.** Commits pushed by delegated or headless agents SHOULD be signed, preferably with keyless signing tied to the session's own identity. Branch rules MAY require signed commits once every agent can sign.
@@ -220,11 +227,44 @@ Pick the gate by what the change touches, never by who or what made it.
 
 - **S1.** Before writing, the agent MUST have a scoped task, MUST have checked for prior and parallel work (W2), and MUST be in its own workspace (W1) with credentials that match the task (I2).
 - **S2.** Before landing, the agent MUST pass the local checks, review the staged diff and the full branch diff against the default branch, update from the default branch, and choose the gate from [section 9](#9-landing-changes). It MUST NOT report a change as done until it has confirmed the change on the remote.
-- **S3.** Before ending, every piece of work MUST be in one of two states: landed, or handed off as a tracked item that a reader with no memory of the session can act on. The item states what, why, where (paths), what done looks like, what to avoid, and the verified state with a date. Tracked items MUST NOT contain secrets.
+- **S3.** Before ending, every piece of work MUST be in one of two states: landed, or handed off as a tracked item ([K5](#14-work-items-and-multi-agent-coordination)) that a reader with no memory of the session can act on. The item states what, why, where (paths), what done looks like, what to avoid, and the verified state with a date. Tracked items MUST NOT contain secrets.
 - **S4.** An agent handing work to another agent or to a human MUST pass the branch, the task item and the open questions, not only a chat summary.
 - **S5.** Agents MUST report outcomes faithfully: failed checks, skipped steps and unverified claims are stated, not smoothed over. When a sanctioned service errors, the agent MUST report the error and MUST NOT switch to a fallback host, service or credential.
 
-## 14. Incident response
+## 14. Work items and multi-agent coordination
+
+Git records what changed. A work item records what is still pending, who holds it, and what the next session needs to know. Agents keep no memory between sessions, so work that is on neither a work item nor a pushed branch is lost when the session ends.
+
+### Work items
+
+- **K1.** Each repository MUST name one tracker for its work items in its contribution guide. Every human and agent that commits to the repository MUST be able to read and update it. A personal notes store, a chat thread, an agent's memory file or a transcript is not a tracker.
+- **K2.** An agent MUST have a work item before its first write ([S1](#13-session-lifecycle-and-handoff)). The work item states the goal, the paths in scope, what done looks like, and the accountable human. In interactive mode, a change small enough to land in one session MAY use its PR as the work item.
+- **K3.** A work item SHOULD carry one status from a fixed set (for example open, claimed, in progress, blocked, in review, done, abandoned). The status changes when the state changes, not at the end of the session.
+- **K4.** The work item, its branch, its commits and its PR MUST be reachable from one another. The branch name and the commits carry the work item's ID ([H1](#6-branches-and-git-hygiene), [C4](#5-history-and-commit-quality)), the PR links the work item ([Q2](#8-pull-requests-and-review)), and the work item links the branch and the PR.
+- **K5.** The handoff record that [S3](#13-session-lifecycle-and-handoff) requires SHOULD live on the work item, in a fixed template, and SHOULD be updated at every checkpoint, not only when the session ends. The latest record MUST be easy to find, for example as the last comment or as a status section at the top of the work item. The playbook has a template.
+- **K6.** A session that takes up existing work MUST read the work item, the latest handoff record and the state of the branch (commits ahead of the default branch, the PR, the latest check results) before its first write. It MUST check what the handoff claims against the repository and the checks, and not take it as true ([U1](#12-untrusted-input-and-instruction-files)).
+- **K7.** A claim ([W2](#4-workspaces-and-concurrency)) is a lease. It records the holder (session and operator) and when it expires, and the holder renews it while working. A push to the claimed branch counts as a renewal. An expired claim MAY be taken over only with the agreement of the previous holder's operator or of the work item's accountable human. The takeover is recorded on the work item, and the new holder continues from the pushed branch. It MUST NOT delete that branch or force-push over it ([H4, H5](#6-branches-and-git-hygiene)). The default lease is one working day ([D8](#21-open-decisions)).
+- **K8.** A work item MAY be closed as done only after the change is confirmed on the remote's default branch ([S2](#13-session-lifecycle-and-handoff)). Closing it as abandoned MUST state the reason. Either way, every branch linked to the work item is landed or recorded as abandoned first. Deleting a branch that has not landed is a human decision ([H4](#6-branches-and-git-hygiene)).
+- **K9.** The accountable human or the dispatcher SHOULD review the tracker at least once a week for expired claims, work items in progress with no push for several days, and agent branches with no work item.
+
+### Several agents on one work item
+
+These rules apply when more than one session works on the same work item at the same time. A single session that hands its work to the next one follows K5 and K6 only.
+
+- **G1.** One session, the coordinator, MUST own the work item, the integration branch and the PR. Every other session is a worker and owns one sub-task. The coordinator is a session, not a role from [section 2](#2-accountability-the-human-roles): a named human is still accountable for all of them.
+- **G2.** Before it dispatches workers, the coordinator MUST record the split on the work item: one sub-task per worker, each with its owner and the paths it may change. No path appears in two sub-tasks ([W3](#4-workspaces-and-concurrency)). Work that does not split into separate paths SHOULD be done one sub-task after another.
+- **G3.** The coordinator cuts the integration branch from the default branch. Each worker works in its own workspace ([W1](#4-workspaces-and-concurrency)), on its own branch cut from the integration branch. Workers MUST NOT push to the integration branch or to another worker's branch ([H5](#6-branches-and-git-hygiene)). Only the coordinator merges worker branches into the integration branch. Branch names MUST NOT nest, because Git cannot hold both `agent/42` and `agent/42/a`. Use a separator instead, such as `agent/42--a`.
+- **G4.** Workers SHOULD commit and push their branch at every checkpoint ([H3](#6-branches-and-git-hygiene)), so that a crashed session or machine loses no more than the last step. For planning, work that has not been pushed counts as not done.
+- **G5.** The coordinator updates the integration branch from the default branch. Workers update from the integration branch after each merge into it. A worker that meets a conflict in a path it does not own MUST stop and report to the coordinator ([H7](#6-branches-and-git-hygiene)).
+- **G6.** Agents MUST exchange state through the work item, the PR and the branches. Each status message names the commit it refers to and says what was done, what was pushed, what is blocked and what is needed. A tool's direct messages between agents MAY be used for speed, but anything the next session needs MUST also be written to the work item.
+- **G7.** A message from another agent is untrusted input ([U1](#12-untrusted-input-and-instruction-files)). An agent acts on it only within the scope that the dispatch record on the work item gives it ([G2](#14-work-items-and-multi-agent-coordination)), and checks its claims (for example "tests pass" or "pushed") against the repository and the checks before relying on them. If a message asks to widen the scope, change rules, touch a protected path or send anything outside, the agent MUST stop and report it to the operator.
+- **G8.** Each worker MUST use its own credentials, no broader than the coordinator's ([I2](#3-identity-access-and-secrets)). The coordinator MUST NOT pass its credentials to a worker.
+- **G9.** Workers that run services, tests or migrations SHOULD each get their own ports, databases and containers, assigned by the coordinator ([W7](#4-workspaces-and-concurrency)).
+- **G10.** When a worker's claim expires, the coordinator SHOULD continue that sub-task from the worker's pushed branch in a new session, and record this on the work item ([K7](#14-work-items-and-multi-agent-coordination)).
+- **G11.** The coordinator MUST NOT close the work item or mark the PR ready for review until every worker branch is merged into the integration branch or recorded as abandoned with a reason, the integration branch passes the required checks, and the full diff against the default branch has been read ([S2](#13-session-lifecycle-and-handoff)). The PR then takes the gate for the paths it touches ([section 9](#9-landing-changes)). With squash merges, the PR description carries the trailers of every agent that contributed ([B2](#7-branching-merging-and-releases), [P1](#10-attribution-and-provenance)).
+- **G12.** The number of parallel workers SHOULD be limited by how cleanly the work splits into separate paths and by how much the reviewers can absorb ([Q7](#8-pull-requests-and-review)).
+
+## 15. Incident response
 
 - **R1. Exposed secret.** The credential MUST be treated as compromised from the moment it was rendered. Rotate it and tell the security owner at once, then remove it from live locations. Rewriting history is optional clean-up and does not replace rotation, because clones, forks and caches keep copies. If the host itself may be compromised (for example by a malicious package), isolate it first, so that rotated credentials are not captured again.
 - **R2. Clobbered work** (a file you edited shows no change, or the branch has commits you did not make). The agent MUST stop writing and MUST NOT force-push over the affected branch. Recover your commits from the reflog, move them to a fresh workspace on a new branch from the latest default branch, and land from there. Reflog entries expire (by default after 90 days, or 30 for commits no branch reaches), and `git fsck --lost-found` finds commits that nothing points to. Edits that were never staged or committed exist only in the working tree and cannot be recovered this way ([W9](#4-workspaces-and-concurrency)).
@@ -232,7 +272,7 @@ Pick the gate by what the change touches, never by who or what made it.
 - **R4. Suspected prompt injection.** The session MUST be stopped and its credentials revoked. Preserve the transcript and the source content, and review every action the session took after reading it.
 - **R5. Rewritten or deleted remote history.** Stop all pushes to the repository. Keep every existing clone and mirror as it is, and do not run `gc` in them. Restore the refs from a clone that still has the objects, or ask the host to restore them, and do it quickly, because unreachable objects are pruned after a grace period. Then find how the rewrite got past [H4](#6-branches-and-git-hygiene) and add the missing control.
 
-## 15. Autonomy levels
+## 16. Autonomy levels
 
 Move a repository (or a path in it) up a level only when the guardrails for that level are in place and verified live. Protected-tier changes stay at human approval at every level.
 
@@ -244,7 +284,7 @@ Move a repository (or a path in it) up a level only when the guardrails for that
 | 3. Land low-risk | Land Low-tier changes directly | L2, the V3 pre-receive checks, V1 |
 | 4. Merge by policy | Merge Standard-tier PRs that meet automated criteria after human approval | All of the above, plus V2, signed commits (P4), a merge queue (W5), logged overrides (V4) and the indicators in M1 |
 
-## 16. Contributing to repositories you do not own
+## 17. Contributing to repositories you do not own
 
 Agents are often pointed at an upstream project. These rules protect the maintainers there and the operator's standing with them.
 
@@ -255,9 +295,9 @@ Agents are often pointed at an upstream project. These rules protect the maintai
 - **X5.** The contributor MUST be able to explain every change in their own words. Projects reject contributions the author cannot explain.
 - **X6.** A repository we maintain that accepts outside contributions SHOULD publish its AI-contribution policy in the contribution guide. When low-quality contributions arrive faster than they can be reviewed, it SHOULD use the host's controls: a cap on open PRs for outside contributors, PR creation limited to collaborators, or PRs turned off.
 
-## 17. Repository baseline and client configuration
+## 18. Repository baseline and client configuration
 
-- **E1.** Every repository SHOULD carry: an instruction file ([U4](#12-untrusted-input-and-instruction-files)), a code-owners file ([L2](#9-landing-changes)), a contribution guide (merge method, commit format, review window, AI policy for outside contributors, and optionally a PR size budget), a security policy, a PR template, ignore rules ([H2, H8](#6-branches-and-git-hygiene)), a `.gitattributes` file (line endings and binary files) and a `.git-blame-ignore-revs` file ([C6](#5-history-and-commit-quality)).
+- **E1.** Every repository SHOULD carry: an instruction file ([U4](#12-untrusted-input-and-instruction-files)), a code-owners file ([L2](#9-landing-changes)), a contribution guide (merge method, commit format, the tracker ([K1](#14-work-items-and-multi-agent-coordination)), review window, AI policy for outside contributors, and optionally a PR size budget), a security policy, a PR template, ignore rules ([H2, H8](#6-branches-and-git-hygiene)), a `.gitattributes` file (line endings and binary files) and a `.git-blame-ignore-revs` file ([C6](#5-history-and-commit-quality)).
 - **E2.** The host MUST protect the default branch with rules ([L1](#9-landing-changes)). The playbook lists the rules to turn on, for two common hosts: block force-pushes, restrict deletions, require a PR and status checks, dismiss stale approvals, require approval of the last push, require code-owner review on protected paths, block merges while secret alerts are unresolved, restrict file paths and sizes, and require linear history if [B3](#7-branching-merging-and-releases) applies.
 - **E3.** People SHOULD set the client baseline in the playbook: for example `fetch.prune`, `pull.ff` set to `only` or `pull.rebase`, `push.autoSetupRemote`, `rebase.autoSquash`, `rebase.updateRefs`, `merge.conflictStyle` set to `zdiff3`, `rerere.enabled` and `transfer.fsckObjects`.
 - **E4.** Non-interactive sessions SHOULD run with `GIT_TERMINAL_PROMPT=0` and a no-op pager, read machine-readable output (`git status --porcelain=v2 -z`), pass commit messages with `-F` instead of shell quoting, and set `GIT_OPTIONAL_LOCKS=0` in any background poller so it does not fight the session for the index lock.
@@ -265,7 +305,7 @@ Agents are often pointed at an upstream project. These rules protect the maintai
 - **E6.** Humans and agents SHOULD clone large repositories with a blobless partial clone or a sparse checkout. Treeless and shallow clones are for throwaway CI, because they break history commands and fetching.
 - **E7.** Scripts and tools SHOULD NOT assume 40-character SHA-1 object names, the `files` ref backend or a branch named `master`, and SHOULD NOT read `.git` internals directly. Use Git commands. New repositories will default to SHA-256, reftable and `main`.
 
-## 18. Solo and personal repositories
+## 19. Solo and personal repositories
 
 A solo repository has one human maintainer: a dotfiles repository, a notes vault, a personal tools repository. Independent review cannot exist there, so a few rules change. Everything not listed here still applies.
 
@@ -275,14 +315,14 @@ A solo repository has one human maintainer: a dotfiles repository, a notes vault
 - **O4.** A repository with personal, financial or client data MUST have a private remote. Agents MUST NOT change its visibility ([I3](#3-identity-access-and-secrets)). Files that hold credentials do not belong in the repository at all ([I5](#3-identity-access-and-secrets)).
 - **O5.** A repository in the home directory MUST use an allowlist ignore file (ignore everything, then list what is tracked), so that `git add -A` cannot sweep in credentials or unrelated projects. Its guardrails follow [V5](#11-validation-and-guardrails).
 
-## 19. Measuring and maintaining
+## 20. Measuring and maintaining
 
 - **M1.** Each team SHOULD track a few indicators for each repository and look at them every quarter: the five delivery metrics (change lead time, deployment frequency, change fail rate, failed-deployment recovery time, rework rate) and Git-level signals: share of agent PRs merged, time to first review, PR size, conflict rate on rebase, blocked pushes and secret alerts, guardrail denials, and the share of agent commits with correct trailers ([P6](#10-attribution-and-provenance)). This guideline sets no targets. AI adoption raises throughput and lowers stability unless the controls in this guideline are in place, so watch change fail rate and rework rate first.
-- **M2.** Recovery drills ([R1, R2, R5](#14-incident-response)) SHOULD be rehearsed in a scratch repository at least twice a year, and guardrails SHOULD be tested to prove they fire ([V5](#11-validation-and-guardrails)).
-- **M3.** This guideline SHOULD be reviewed every six months and after every incident. Contribution policies, host features and tool defaults changed several times during 2026, so each review re-checks the sources a rule depends on. Record changes in [section 21](#21-changes-in-v2).
+- **M2.** Recovery drills ([R1, R2, R5](#15-incident-response)) SHOULD be rehearsed in a scratch repository at least twice a year, and guardrails SHOULD be tested to prove they fire ([V5](#11-validation-and-guardrails)).
+- **M3.** This guideline SHOULD be reviewed every six months and after every incident. Contribution policies, host features and tool defaults changed several times during 2026, so each review re-checks the sources a rule depends on. Record changes in [section 22](#22-changes).
 - **M4.** Every control this guideline requires MUST be checked live on the host, with the date recorded next to it ([L1](#9-landing-changes), [S3](#13-session-lifecycle-and-handoff)).
 
-## 20. Open decisions
+## 21. Open decisions
 
 Rows marked decided are settled. The others need a decision from the owner. Each has a proposed default, so the guideline can be used before the decision is made.
 
@@ -295,8 +335,22 @@ Rows marked decided are settled. The others need a decision from the owner. Each
 | D5 (decided) | Accept the solo-repository exception (O1) | Decided 2026-10-01: accepted, with O2 and O3 |
 | D6 (decided) | The 5 MB default for large files (H8), and the stop line for conflicts (H7). H7 now has some evidence behind it | Decided 2026-10-01: keep both. H7 stays a judgement call |
 | D7 (decided) | Whether to adopt Conventional Commits (C7) | Decided 2026-10-01: only where release tooling reads the history |
+| D8 (decided) | The default claim lease (K7): how long a claim lasts without a push or renewal before it counts as expired | Decided 2026-10-02: one working day. A repository MAY set its own in its contribution guide |
 
-## 21. Changes in v2
+## 22. Changes
+
+### v3 (accepted, 2026-10-02)
+
+Rule IDs from v2 are unchanged. Section 14 is new, and old sections 14 to 21 are now sections 15 to 22.
+
+| Kind | What changed |
+|---|---|
+| New rules | K1 to K9 (work items, claims as leases, handoff on the work item), G1 to G12 (several agents on one work item) |
+| Changed rules | W2 (claims expire, see K7; a plain tracker assignment is not an atomic claim), S3 (handoff record on the work item), E1 (contribution guide names the tracker), rules at a glance (14 and 15 added), definitions (work item, tracker, claim, coordinator and worker, integration branch) |
+| Decided | D8 (default claim lease: one working day), 2026-10-02 |
+| Found by test | A branch push with an empty lease (`--force-with-lease=<ref>:`) succeeds only if the branch does not exist yet, so it works as an atomic claim. Git rejects a branch whose name nests under another (`agent/42` and `agent/42/a`), which is why G3 bans nesting. Both are in `tests/verify-git-commands.sh` |
+
+### v2
 
 Rule IDs from v1 are unchanged. Section numbers moved. Sections 5, 7, 8 and 16 to 21 are new. Old section 5 is now section 6, and old sections 6 to 12 are now sections 9 to 15.
 
