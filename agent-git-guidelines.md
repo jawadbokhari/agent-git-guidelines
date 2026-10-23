@@ -11,7 +11,7 @@ source: First written 2026-09-19 (v1), revised 2026-09-25 (v2), accepted 2026-10
 
 # Git guidelines for teams of AI agents and humans
 
-**Status:** v3 accepted 2026-10-02: adds [section 14](#14-work-items-and-multi-agent-coordination) on work items and multi-agent coordination. All open decisions settled (D8 decided 2026-10-02). v2 accepted 2026-10-01 (v2 draft: 2026-09-25, v1: 2026-09-19). Vendor-neutral: it names capabilities, not products.
+**Status:** v3.1 proposed 2026-10-24: L6 lets an agent merge after a human host approval ([section 22](#22-changes)). v3 accepted 2026-10-02: adds [section 14](#14-work-items-and-multi-agent-coordination) on work items and multi-agent coordination. All open decisions settled (D8 decided 2026-10-02). v2 accepted 2026-10-01 (v2 draft: 2026-09-25, v1: 2026-09-19). Vendor-neutral: it names capabilities, not products.
 **Evidence:** every rule ID below maps to its sources in [`agent-git-guidelines-research.md`](./agent-git-guidelines-research.md#rule-to-source-map).
 **Practice guide:** templates, tested commands, configuration and host settings are in [`agent-git-playbook.md`](./agent-git-playbook.md). That guide names products. This document does not.
 **Keywords:** MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119 and RFC 8174. A MUST is achievable today with common Git hosting and agent tooling. A SHOULD may be skipped only with a recorded reason.
@@ -22,7 +22,7 @@ source: First written 2026-09-19 (v1), revised 2026-09-25 (v2), accepted 2026-10
 ## 0. The rules at a glance
 
 1. One task, one branch, one isolated workspace. Never share a working directory with another session. ([W1](#4-workspaces-and-concurrency))
-2. Agents never push to the default branch of a code repository and never approve or merge their own change. ([L1, L3](#9-landing-changes))
+2. Agents never push to the default branch of a code repository and never approve their own change. They merge one only after a human has approved it on the host. ([L1, L3, L6](#9-landing-changes))
 3. Anything that must always hold is enforced by the Git host or CI, not by an instruction file. ([V1](#11-validation-and-guardrails))
 4. Agents get the least access the task needs: scoped, short-lived credentials, with no rights over settings, protection or their own permissions. ([I2, I3](#3-identity-access-and-secrets))
 5. Secrets never enter a commit, a message, a prompt, a log, a transcript or a work item. If one is exposed, rotate it. ([I5](#3-identity-access-and-secrets), [R1](#15-incident-response))
@@ -176,9 +176,10 @@ Pick the gate by what the change touches, never by who or what made it.
 
 - **L1.** In code repositories, agents MUST NOT push directly to the default branch. Branch protection or rulesets MUST enforce this, and they MUST be checked against the live host settings, not assumed from a document.
 - **L2.** Each repository MUST list its protected paths in a code-owners file, and Protected-tier changes MUST need a code owner's approval. Protected-path checks MUST read the code-owners file from the default branch, not from the change under test. They MUST also cover both the old and the new path of renames and deletions, and match case-insensitively. The check MUST run as a required status check on every PR, including drafts, because some hosts do not request code owners on drafts.
-- **L3.** An agent MUST NOT approve or merge a PR it authored. An agent's review MAY be posted as advice, but SHOULD NOT count toward required approvals. It MUST NOT count for Protected-tier changes. A required check SHOULD fail when the approver is the operator or workflow owner of the authoring agent.
+- **L3.** An agent MUST NOT approve a PR it authored. An agent's review MAY be posted as advice, but SHOULD NOT count toward required approvals. It MUST NOT count for Protected-tier changes. A required check SHOULD fail when the approver is the operator or workflow owner of the authoring agent.
 - **L4.** Before adding a new third-party dependency, the agent SHOULD confirm that the package exists in the official registry and is not newly published, because agents invent plausible package names. New dependencies MUST go through the Protected-tier gate. Version bumps from a dedicated dependency-update bot MAY use their own lane with required CI.
 - **L5.** If a required reviewer is not available, the PR MUST stay open and the session MUST hand it off ([S3](#13-session-lifecycle-and-handoff)). Finishing the session is not a reason to lower the gate.
+- **L6.** An agent MAY merge a PR it authored only when all of these hold: (a) a human approved it on the host, in this or another session, and the approval covers the current head commit; (b) the required checks pass; (c) the merge names that head commit (for example `--sha` or `--match-head-commit`), so a later push cannot land; (d) the operator told this session to merge that PR. A chat message is not a host approval. The credential used to merge is scoped to merging in that repository ([I2](#3-identity-access-and-secrets)) and gives no rights over settings or protection ([I3](#3-identity-access-and-secrets)). Protected-tier changes still need a human code owner's approval ([L2](#9-landing-changes)). If any condition fails, the PR stays open and the session hands it off (L5). After the merge the agent MAY delete its own local branch and workspace under [W6](#4-workspaces-and-concurrency) and [H4](#6-branches-and-git-hygiene).
 
 ## 10. Attribution and provenance
 
@@ -309,7 +310,7 @@ Agents are often pointed at an upstream project. These rules protect the maintai
 
 A solo repository has one human maintainer: a dotfiles repository, a notes vault, a personal tools repository. Independent review cannot exist there, so a few rules change. Everything not listed here still applies.
 
-- **O1.** In a solo repository the owner MAY approve their own agent's PR, after reading the diff in a step separate from the session that produced it. The agent MUST NOT approve or merge ([L3](#9-landing-changes)). This replaces the second-reviewer wait in A1 and the approver check in L3, for solo repositories only.
+- **O1.** In a solo repository the owner MAY approve their own agent's PR, after reading the diff in a step separate from the session that produced it. The agent MUST NOT approve ([L3](#9-landing-changes)). It MAY merge after the owner's approval, under [L6](#9-landing-changes). This replaces the second-reviewer wait in A1 and the approver check in L3, for solo repositories only.
 - **O2.** Guardrails for a solo repository MUST live outside the repository (user-level or admin-level tool settings, or a host ruleset), so that the agent's own edits to the repository cannot weaken them ([V2](#11-validation-and-guardrails)). Protected-path changes still get a separate, deliberate review of the diff before they land.
 - **O3.** An auto-commit or auto-sync hook (for example one that commits when a session ends) MUST stage tracked files or an explicit allowlist, never everything. It MUST run the secret check ([V3](#11-validation-and-guardrails)) before the commit. It MUST skip while a rebase, merge or cherry-pick is in progress, on a detached HEAD, and with unresolved conflicts. It MUST NOT force-push. It SHOULD mark its commits as automatic in the message, so they can be squashed later, and SHOULD push only to a private remote that only the owner writes to. The playbook links a tested reference script.
 - **O4.** A repository with personal, financial or client data MUST have a private remote. Agents MUST NOT change its visibility ([I3](#3-identity-access-and-secrets)). Files that hold credentials do not belong in the repository at all ([I5](#3-identity-access-and-secrets)).
@@ -338,6 +339,16 @@ Rows marked decided are settled. The others need a decision from the owner. Each
 | D8 (decided) | The default claim lease (K7): how long a claim lasts without a push or renewal before it counts as expired | Decided 2026-10-02: one working day. A repository MAY set its own in its contribution guide |
 
 ## 22. Changes
+
+### v3.1 (proposed, 2026-10-24)
+
+Rule IDs are unchanged. L6 is new.
+
+| Kind | What changed |
+|---|---|
+| New rules | L6 (an agent may merge its own PR after a human host approval of the current head commit, pinned to that commit, on the operator's instruction) |
+| Changed rules | L3 (approve only; the merge ban moved to L6), rules at a glance (2), O1 (merge allowed under L6) |
+| Why | L3 existed to stop an author approving itself. A merge after an independent human approval does not break that. Requiring the merge to happen in a separate app also left the local branch and workspace behind |
 
 ### v3 (accepted, 2026-10-02)
 

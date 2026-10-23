@@ -210,6 +210,7 @@ Rules marked *judgement* have no primary source. They come from combining the ev
 | Q9 | S50, S74, S96, S98 |
 | Q10 | S114 |
 | L1 to L5 | S03, S06, S12, S13, S17, S38, S89, S113 |
+| L6 | *judgement* |
 | P1 | S19, S20, S21, S22, S23, S34, S76, S79, S81, S82, S83, S114 |
 | P2 | S46, S47, S54, S79 |
 | P3 | S33, S81, S82, S83 |
