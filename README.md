@@ -12,6 +12,7 @@ Git guidelines for teams where AI coding agents and humans work in the same repo
 | [`examples/auto-commit.sh`](./examples/auto-commit.sh) | Reference auto-commit hook for solo repositories (rule O3) |
 | [`examples/check-trailers.sh`](./examples/check-trailers.sh) | Reference provenance check (rule V3): fails a PR whose squash message would lose the `Assisted-by` trailer, and a landed commit whose `Assisted-by` line is not a trailer |
 | [`examples/provenance-check.yml`](./examples/provenance-check.yml) | GitHub Actions workflow that runs the provenance check on PRs and on pushes to the default branch |
+| [`examples/agents/adversarial-reviewer.md`](./examples/agents/adversarial-reviewer.md) | Claude Code subagent that reviews a policy, guideline, design or diff as a skeptic and reports concrete failure scenarios. Used to stress-test these guidelines. Copy it to `~/.claude/agents/` to use it |
 | [`tests/verify-git-commands.sh`](./tests/verify-git-commands.sh) | 89 checks of the Git behaviour the rules rely on and of the example scripts. Run it after a Git upgrade |
 
 ## Using it in a repository
